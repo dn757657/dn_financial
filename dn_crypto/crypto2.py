@@ -1,5 +1,6 @@
 import argparse
 import json
+import pandas as pd
 import web3
 import copy
 import time
@@ -38,12 +39,12 @@ class cryptoWallet():
         return json.dumps(result)
 
     def get_eth_balances(self,
-                         dates=None):
+                         dates):
         """ create dictionary with tokenSymbol as key and token balance as value in token count
 
         args:
             dates           list of datetime objects where balances are sampled
-            currency        string of currency symbol of desired output
+            currency        string of currency symbol of desired output XX
 
         note that timestamps on the ethereum blockchain are UNIX timstamps
 
@@ -56,11 +57,11 @@ class cryptoWallet():
         balances = list()
         # convert datetime objects to UNIX time stamp for comparison with txn timestamps
         # if no dates passed use present date
-        if not dates:
-            dates = list()
-            t_sample = datetime.datetime.now()
-            t_sample = int(time.mktime(t_sample.timetuple()))
-            dates.append(t_sample)
+        # if not dates:
+        #     dates = list()
+        #     t_sample = datetime.datetime.now()
+        #     t_sample = int(time.mktime(t_sample.timetuple()))
+        #     dates.append(t_sample)
 
         for date in dates:
             period_balances = dict()
@@ -81,7 +82,18 @@ class cryptoWallet():
 
             balances.append(period_balances)
 
-        return balances
+        balances_df = pd.DataFrame()
+        for i in range(0, len(balances)):
+            date_balances = balances[i]
+            date_balances['x'] = dates[i]
+            date_balances_df = pd.DataFrame(date_balances, index=[i])
+
+            if balances_df.empty:
+                balances_df = date_balances_df
+            else:
+                balances_df = pd.concat([balances_df, date_balances_df])
+
+        return balances_df
 
     def get_eth_txn(self, blocks=None):
         # TODO potentially limit use of this function by diverting to get_eth_block_transactions
@@ -153,12 +165,29 @@ class cryptoWallet():
 
         return transactions, interacted_blocks
 
+    def get_asset_balances(self, dates):
+        """ try to get all asset balances in wallet """
+
+        all_balances_df = pd.DataFrame()
+        merge_dfs = list()
+
+        # for each type of balance add to list and merge to all balances - can add in future
+        eth_balances_df = self.get_eth_balances(dates)
+        merge_dfs.append(eth_balances_df)
+
+        for df in merge_dfs:
+            if not df.empty:
+                all_balances_df = pd.concat([all_balances_df, df])
+        all_balances_df = all_balances_df.fillna(0)
+
+        return all_balances_df
+
 
 def __main__():
     # wallet = cryptoWallet(addy='0x68e6D61EDB3fb8b564E9Ae196cFa59FBda01d5A4')
     wallet = cryptoWallet(addy='0x68e6D61EDB3fb8b564E9Ae196cFa59FBda01d5A4')
     start_date = datetime.strptime('2021-11-01', DATE_FORMAT)
-    end_date = datetime.strptime('2022-04-01', DATE_FORMAT)
+    end_date = datetime.strptime('2022-06-01', DATE_FORMAT)
     res = get_date_res(window_unit='month', window_size=1)
 
     data = populate_dates(resolution=res, x_max=end_date, x_min=start_date)
@@ -166,7 +195,8 @@ def __main__():
     for datepair in data:
         data_str.append(datepair[1])
 
-    balances = wallet.get_eth_balances(dates=data_str)
+    sample_dates = pd.date_range(start=start_date, end=end_date, freq='M')
+    balances = wallet.get_asset_balances(dates=sample_dates)
     for balance in balances:
         print(balance)
     print(wallet.eth_txns)

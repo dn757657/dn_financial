@@ -35,12 +35,21 @@ def get_latest_price(symbol, source='yahoo', current=False, start=None, end=None
         return
 
 
-def __main__():
-    print("latest: {}".format(get_latest_price('VFV.TO')))
+def get_all_yahoo(symbol):
+    d = datar.get_data_yahoo(str(symbol))
 
-    date = datetime.strptime('2020-02-20', DATE_FORMAT)
-    price = get_price(symbol='VFV.TO', date=date)
-    print("{}: {}".format(date, price))
+    return d
+
+
+def __main__():
+    # print("latest: {}".format(get_latest_price('VFV.TO')))
+    #
+    # date = datetime.strptime('2020-02-20', DATE_FORMAT)
+    # price = get_price(symbol='VFV.TO', date=date)
+    # print("{}: {}".format(date, price))
+
+    d = datar.get_data_yahoo('VFV.TO')
+    print()
 
 
 if __name__ == '__main__':
